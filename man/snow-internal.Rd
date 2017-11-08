@@ -75,7 +75,7 @@ slaveLoop(master)
 sinkWorkerOutput(outfile)
 
 newSOCKnode(machine = "localhost", ..., options = defaultClusterOptions, rank)
-makeSOCKmaster(master = Sys.getenv("MASTER"), port = Sys.getenv("PORT"))
+makeSOCKmaster(port = Sys.getenv("PORT"))
 \method{closeNode}{SOCKnode}(node)
 \method{sendData}{SOCKnode}(node, data)
 \method{recvData}{SOCKnode}(node)

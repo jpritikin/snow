@@ -61,11 +61,7 @@ newSOCKnode <- function(machine = "localhost", ...,
         cmd <- paste("env", env, script)
     }
 
-    if (manual) {
-        cat("Manually start worker on", machine, "with\n    ", cmd, "\n")
-        flush.console()
-    }
-    else {
+    if (!manual) {
         ## add the remote shell command if needed
         if (machine != "localhost") {
             rshcmd <- getClusterOption("rshcmd", options)
@@ -91,20 +87,38 @@ newSOCKnode <- function(machine = "localhost", ...,
     timeout <- getClusterOption("timeout")
     old <- options(timeout = timeout);
     on.exit(options(old))
-    con <- socketConnection(port = port, server=TRUE, blocking=TRUE,
-                            open="a+b")
+    startTime <- as.numeric(Sys.time())
+    manualMessage <- FALSE
+    while (startTime + timeout > Sys.time()) {
+        con <- try(suppressWarnings(socketConnection(machine, port = port, blocking=TRUE, open="a+b")),
+                   silent = TRUE)
+        if (is(con,'try-error')) {
+            if (manual && !manualMessage) {
+                cat("Manually start worker on", machine, "with\n    ", cmd, "\n")
+                flush.console()
+                manualMessage <- TRUE
+            }
+            if (grepl('cannot open the connection', con, fixed=TRUE)) {
+                Sys.sleep(.01)
+                next
+            } else {
+                stop(con)
+            }
+        }
+        break
+    }
     structure(list(con = con, host = machine, rank = rank), class = "SOCKnode")
 }
 
-makeSOCKmaster <- function(master = Sys.getenv("MASTER"),
-                           port = Sys.getenv("PORT")) {
+makeSOCKmaster <- function(port = Sys.getenv("PORT")) {
     port <- as.integer(port)
     ## maybe use `try' and sleep/retry if first time fails?
     ## need timeout here because of the way internals work
     timeout <- getClusterOption("timeout")
     old <- options(timeout = timeout);
     on.exit(options(old))
-    con <- socketConnection(master, port = port, blocking=TRUE, open="a+b")
+    cat("waiting for master at port", port, "\n")
+    con <- socketConnection(port = port, server=TRUE, blocking=TRUE, open="a+b")
     structure(list(con = con), class = "SOCKnode")
 }
 
